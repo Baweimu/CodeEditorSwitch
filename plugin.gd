@@ -90,16 +90,22 @@ func _apply_shortcut_to_button() -> void:
 	tooltip += "\n快捷键：" + combo + "，可直接在外部编辑器中打开当前脚本。"
 	shortcut_proxy_button.tooltip_text = tooltip
 
-## 优先从 InputMap 构造快捷键
+## 优先从 ProjectSettings 构造快捷键（避免使用 InputMap.load_from_project_settings 污染编辑器输入）
 func _build_input_map_shortcut() -> Shortcut:
-	var key := "input/%s" % INPUT_ACTION
-	if not ProjectSettings.has_setting(key):
+	var action_path := "input/" + INPUT_ACTION
+	if not ProjectSettings.has_setting(action_path):
 		return null
-	var events := ProjectSettings.get_setting(key)
+
+	var action_data = ProjectSettings.get_setting(action_path)
+	if action_data == null or not action_data.has("events"):
+		return null
+
+	var events: Array = action_data["events"]
 	if events.is_empty():
 		return null
+
 	var shortcut := Shortcut.new()
-	shortcut.events = events["events"].duplicate()
+	shortcut.events = events.duplicate()
 	shortcut.resource_name = "使用外部编辑器打开脚本"
 	return shortcut
 
@@ -199,7 +205,8 @@ func _open_current_script_externally() -> void:
 	if err == -1:
 		push_error("外部编辑器启动失败：%s（错误码 %d），请检查配置。" % [exec_path, err])
 	else:
-		print("外部编辑器启动成功，进程 ID：%s。" % [err])
+		pass
+		# print("外部编辑器启动成功，进程 ID：%s。" % [err])
 
 ## 查询当前脚本编辑器的光标位置，若无法获取则返回 0,0
 func _get_caret_position(script_editor: ScriptEditor) -> Dictionary:
